@@ -14,7 +14,7 @@ HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Federated Learning Dashboard</title>
+    <title>Federated Learning</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * {
@@ -339,14 +339,14 @@ HTML = """
         <h1>Federated Learning Dashboard</h1>
 
         <p class="note">
-            This dashboard runs <strong>CIFAR-10 federated learning</strong> with non-IID client splits
+            This app runs <strong>CIFAR-10 federated learning</strong> with non-IID client splits
             and compares <strong>FedAvg</strong> and <strong>FedProx</strong>.
         </p>
 
         <div class="preset-box">
-            <strong>Recommended demo settings:</strong>
+            <strong>Note: Recommended for demo:</strong>
             FedAvg, 3 rounds, 4 clients, local epochs = 1, alpha = 0.5.
-            These settings run faster and are good for demo and screenshots.
+            These settings run faster and are good for demo.
         </div>
 
         <form method="POST">
