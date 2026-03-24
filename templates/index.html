@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Federated Learning Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loader-card">
+            <div class="spinner"></div>
+            <h3>Training in progress...</h3>
+            <p>Please wait. The dashboard will update when training finishes.</p>
+        </div>
+    </div>
+
+    <div class="page">
+        <header class="hero">
+            <div>
+                <p class="eyebrow">Advanced Federated Learning</p>
+                <h1>Federated Learning Dashboard</h1>
+                <p class="subtitle">
+                    Run CIFAR-10 federated learning with non-IID splits and compare
+                    <strong>FedAvg</strong> vs <strong>FedProx</strong>.
+                </p>
+            </div>
+            <div class="hero-badges">
+                <span class="badge">CIFAR-10</span>
+                <span class="badge">Non-IID</span>
+                <span class="badge">FedAvg / FedProx</span>
+            </div>
+        </header>
+
+        <section class="presets card">
+            <div class="section-head">
+                <h2>Quick Presets</h2>
+                <p>Choose a ready-made setup, then fine-tune fields below.</p>
+            </div>
+            <div class="preset-buttons">
+                <button type="button" class="preset-btn" data-preset="quick">Quick Demo</button>
+                <button type="button" class="preset-btn" data-preset="balanced">Balanced</button>
+                <button type="button" class="preset-btn" data-preset="strong">Stronger Run</button>
+                <button type="button" class="preset-btn ghost" id="resetFormBtn">Reset</button>
+            </div>
+        </section>
+
+        <form id="trainForm" method="POST" class="grid-layout">
+            <section class="card">
+                <div class="section-head">
+                    <h2>Core Settings</h2>
+                    <p>Main controls for your training run.</p>
+                </div>
+
+                <div class="field-grid">
+                    <div class="field">
+                        <label for="algorithm">Algorithm</label>
+                        <select id="algorithm" name="algorithm">
+                            <option value="fedavg" {% if form.algorithm == "fedavg" %}selected{% endif %}>FedAvg</option>
+                            <option value="fedprox" {% if form.algorithm == "fedprox" %}selected{% endif %}>FedProx</option>
+                        </select>
+                        <small>FedAvg is the baseline. FedProx is better for highly non-IID clients.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="rounds">Rounds</label>
+                        <input id="rounds" type="number" name="rounds" min="1" value="{{ form.rounds }}">
+                        <small>More rounds usually improve convergence but take longer.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="num_clients">Number of Clients</label>
+                        <input id="num_clients" type="number" name="num_clients" min="2" value="{{ form.num_clients }}">
+                        <small>Each client simulates a separate local participant.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="local_epochs">Local Epochs</label>
+                        <input id="local_epochs" type="number" name="local_epochs" min="1" value="{{ form.local_epochs }}">
+                        <small>How much each client trains before sending updates.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="batch_size">Batch Size</label>
+                        <input id="batch_size" type="number" name="batch_size" min="8" value="{{ form.batch_size }}">
+                        <small>Higher values may train faster if memory allows.</small>
+                    </div>
+
+                    <div class="field">
+                        <label for="lr">Learning Rate</label>
+                        <input id="lr" type="number" step="0.0001" name="lr" value="{{ form.lr }}">
+                        <small>Controls update size during optimization.</small>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="section-head">
+                    <h2>Interactive Controls</h2>
+                    <p>Use sliders to shape the federated setting.</p>
+                </div>
+
+                <div class="field">
+                    <div class="label-row">
+                        <label for="client_fraction">Client Fraction</label>
+                        <span id="client_fraction_value" class="value-pill">{{ form.client_fraction }}</span>
+                    </div>
+                    <input
+                        id="client_fraction"
+                        type="range"
+                        name="client_fraction"
+                        min="0.1"
+                        max="1.0"
+                        step="0.1"
+                        value="{{ form.client_fraction }}"
+                    >
+                    <small>Fraction of clients participating in each round.</small>
+                </div>
+
+                <div class="field">
+                    <div class="label-row">
+                        <label for="alpha">Alpha (Non-IID Control)</label>
+                        <span id="alpha_value" class="value-pill">{{ form.alpha }}</span>
+                    </div>
+                    <input
+                        id="alpha"
+                        type="range"
+                        name="alpha"
+                        min="0.1"
+                        max="2.0"
+                        step="0.1"
+                        value="{{ form.alpha }}"
+                    >
+                    <small>Lower alpha means more non-IID data distribution.</small>
+                </div>
+
+                <div class="field">
+                    <div class="label-row">
+                        <label for="mu">Mu (FedProx Only)</label>
+                        <span id="mu_value" class="value-pill">{{ form.mu }}</span>
+                    </div>
+                    <input
+                        id="mu"
+                        type="range"
+                        name="mu"
+                        min="0.001"
+                        max="0.1"
+                        step="0.001"
+                        value="{{ form.mu }}"
+                    >
+                    <small id="muHelp">Used only when FedProx is selected.</small>
+                </div>
+
+                <div class="field">
+                    <label for="seed">Seed</label>
+                    <input id="seed" type="number" name="seed" value="{{ form.seed }}">
+                    <small>Keeps experiments reproducible.</small>
+                </div>
+
+                <details class="advanced-box">
+                    <summary>When should I use FedAvg vs FedProx?</summary>
+                    <div class="advanced-content">
+                        <p><strong>FedAvg:</strong> good baseline, simpler, fast to explain.</p>
+                        <p><strong>FedProx:</strong> better when client data is very uneven or highly non-IID.</p>
+                    </div>
+                </details>
+            </section>
+
+            <section class="card full-span">
+                <div class="action-bar">
+                    <button type="submit" id="trainBtn" class="primary-btn">Start Training</button>
+                    <button type="button" id="scrollResultsBtn" class="secondary-btn">Go to Results</button>
+                </div>
+            </section>
+        </form>
+
+        {% if error %}
+        <section class="alert error">
+            <strong>Error:</strong> {{ error }}
+        </section>
+        {% endif %}
+
+        {% if status %}
+        <section class="alert success" id="results">
+            {{ status }}
+        </section>
+        {% endif %}
+
+        {% if summary %}
+        <section class="summary-grid">
+            <div class="summary-card">
+                <p>Average Client Accuracy</p>
+                <h3>{{ "%.4f"|format(summary.avg_acc) }}</h3>
+            </div>
+            <div class="summary-card">
+                <p>Average Client Loss</p>
+                <h3>{{ "%.4f"|format(summary.avg_loss) }}</h3>
+            </div>
+            <div class="summary-card">
+                <p>Best Client</p>
+                <h3>Client {{ summary.best_client_id }}</h3>
+                <span>{{ "%.4f"|format(summary.best_client_acc) }}</span>
+            </div>
+            <div class="summary-card">
+                <p>Lowest Client Accuracy</p>
+                <h3>Client {{ summary.worst_client_id }}</h3>
+                <span>{{ "%.4f"|format(summary.worst_client_acc) }}</span>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if images %}
+        <section class="card">
+            <div class="section-head">
+                <h2>Training Graphs</h2>
+                <p>Generated after the latest run.</p>
+            </div>
+            <div class="image-grid">
+                {% for img in images %}
+                <div class="image-card">
+                    <div class="image-card-head">
+                        <h3>{{ img.name }}</h3>
+                        <a href="{{ img.url }}" target="_blank">Open</a>
+                    </div>
+                    <img src="{{ img.url }}" alt="{{ img.name }}">
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if client_metrics %}
+        <section class="card">
+            <div class="table-topbar">
+                <div>
+                    <h2>Per-Client Validation Metrics</h2>
+                    <p>Search by client id or sort by accuracy.</p>
+                </div>
+                <div class="table-tools">
+                    <input type="text" id="clientSearch" placeholder="Search client...">
+                    <button type="button" id="sortAccuracyBtn" class="secondary-btn small">Sort by Accuracy</button>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table id="clientTable">
+                    <thead>
+                        <tr>
+                            <th>Client ID</th>
+                            <th>Validation Loss</th>
+                            <th>Validation Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cid, metrics in client_metrics.items() %}
+                        <tr>
+                            <td>{{ cid }}</td>
+                            <td>{{ "%.4f"|format(metrics["val_loss"]) }}</td>
+                            <td>{{ "%.4f"|format(metrics["val_acc"]) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+    </div>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
